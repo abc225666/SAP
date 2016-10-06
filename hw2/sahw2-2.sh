@@ -104,7 +104,9 @@ findlink(){
 			
 		}' )
 	# goto link
-	if ["$link" -eq ""];then 
+	if ["$link" -eq ""];then
+		dialog --msgbox "No Links in this page" 200 100
+		gotopage
 		return
 	fi
 	if [ "$1" = "-link" ]; then
@@ -113,6 +115,7 @@ findlink(){
 		linkselect=$(echo $link|xargs dialog --menu "Link:" 200 100 20 3>&1 1>&2 2>&3 3>&-)
 		
 		if [ $? -eq 1 -o $? -eq 255 ]; then
+			gotopage
 			return
 		else
 			cur_url=$(echo $link|cut -d'"' -f$((linkselect*2)))
@@ -123,10 +126,12 @@ findlink(){
 		if [ "$1" = "-download" ]; then
 			linkselect=$(echo $link|xargs dialog --menu "Download:" 200 100 20 3>&1 1>&2 2>&3 3>&-)
 			if [ $? -eq 1 -o $? -eq 255 ]; then
+				gotopage
 				return
 			else
 				down_url=$(echo $link|cut -d'"' -f$((linkselect*2)))
 				wget -qP ~/Downloads/ "$down_url"	
+				gotopage
 			fi
 		fi
 	fi
@@ -147,6 +152,10 @@ bookmark(){
 			2 \"Delete a_bookmark\" "
 	bookmark=$bookmark$(cat ~/.mybrowser/bookmark|awk 'BEGIN{num=3}{print num" \""$0"\""}{num=num+1}')
 	bmselect=$(echo $bookmark|xargs dialog --menu "Bookmarks:" 200 100 10 3>&1 1>&2 2>&3 3>&-)
+	if [ $? -eq 1 -o $? -eq 255 ]; then
+		gotopage
+		return
+	fi
 	case $bmselect in
 		"1")
 			addbookmark
@@ -186,6 +195,7 @@ checkcmd(){
 		;;
 		"/S")
 			source
+			gotopage
 		;;
 		"/L")
 			findlink -link
@@ -200,16 +210,23 @@ checkcmd(){
 			echo $cmd|grep "^!">/dev/null
 			# have ! it's cmd
 			if [ $? -eq 0 ]; then
-				cmd="$(echo $cmd|sed 's/^ *! *{//g'|sed 's/} *$//g')"
+				cmd="$(echo $cmd|sed 's/^ *! *\$ *{//g'|sed 's/} *$//g')"
 				file=mktemp
 				eval $cmd>$file 2>>~/.mybrowser/error
 				dialog --textbox $file 200 100
+				gotopage
 				rm $file
 				
 			# url or garbage
 			else
-				tempurl=$cmd
-				checkurl
+				echo $cmd|grep "^/">>/dev/null
+				if ! [ $? -eq 0 ]; then
+					tempurl=$cmd
+					checkurl
+				else
+					dialog --msgbox "Invalid Command\nTry /H for help Messages" 200 100
+
+				fi
 
 			fi
 		;;
