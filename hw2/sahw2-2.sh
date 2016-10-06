@@ -104,16 +104,20 @@ findlink(){
 			
 		}' )
 	# goto link
+	if ["$link" -eq ""];then 
+		return
+	fi
 	if [ "$1" = "-link" ]; then
 	
 	#	echo $link
 		linkselect=$(echo $link|xargs dialog --menu "Link:" 200 100 20 3>&1 1>&2 2>&3 3>&-)
-
+		
 		if [ $? -eq 1 -o $? -eq 255 ]; then
 			return
 		else
 			cur_url=$(echo $link|cut -d'"' -f$((linkselect*2)))
 			gotopage
+			
 		fi
 	else
 		if [ "$1" = "-download" ]; then
@@ -158,7 +162,7 @@ bookmark(){
 }
 addbookmark(){
 	echo "$cur_url">>~/.mybrowser/bookmark
-	bookmark
+	
 }
 delbookmark(){
 	bookmark=$(cat ~/.mybrowser/bookmark|awk 'BEGIN{num=1}{print num" \""$0"\""}{num=num+1}')
