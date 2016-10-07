@@ -12,6 +12,8 @@ if ! [ -d ~/Downloads ]; then
 	mkdir ~/Downloads
 fi
 
+
+
 alias dialog='dialog --title "browser"'
 alias curlcheck='curl -o /dev/null -s -w "%{http_code}"'
 
@@ -20,6 +22,7 @@ cur_url="http://nasa.cs.nctu.edu.tw"
 cmd=""
 bmselect=""
 tempurl="google.com"
+history_index="0"
 
 checkterms(){
 	dialog --title "terms" --yesno "$(cat ~/.mybrowser/userterm)" 200 100
@@ -30,16 +33,26 @@ checkterms(){
 	fi
 }
 gotopage(){
-	file=mktemp
+	file=$(mktemp)
 	
+	#----------------browse history------------------
+	if [ "$1" != "norecord" ]; then
+		if ! [ $history_index -eq 0  ]; then
+			sed -i "" $((history_index+1))",\$d" ~/.mybrowser/.browse_history
+		fi
+		echo "$cur_url">> ~/.mybrowser/.browse_history
+		history_index=$((history_index+1))
+	fi
+
+	#----------------get html content and show in testbox-----------------
 	w3m -dump $cur_url>$file
-	
 	dialog --textbox $file 200 100
+
 	rm $file
 }
 inputpage(){
-	cmd=$(dialog --inputbox "$cur_url" 200 100 \
-			3>&1 1>&2 2>&3 3>&-)
+	#----------------redirect input content to stdout---------------
+	cmd=$(dialog --inputbox "$cur_url" 200 100 3>&1 1>&2 2>&3 3>&-)
 	if [ "$?" -eq 0 ]; then
 		checkcmd
 	else
@@ -47,9 +60,7 @@ inputpage(){
 	fi 
 }
 findlink(){
-	
-#	link=$(curl -skL $cur_url| grep -E "<a href"|cut -d'"' -f2 |awk -v url=$cur_url '{if( $0 ~ "^ */"){print url$0}
-#		else if($0 ~ "^ ..")print $0} }'|awk 'BEGIN{num=1} {print num" \""$0"\""}{num=num+1}')
+	#----------------check path (../,/xx,xx/,./,........)----------------------	
 	link=$(curl -skL $cur_url|grep -E "<a href"|cut -d'"' -f2 | \
 		awk -v url=$cur_url 'BEGIN{
 			num=1
@@ -103,19 +114,20 @@ findlink(){
 			
 			
 		}' )
-	# goto link
+	#--------------------goto link------------------
 	if ["$link" -eq ""];then
 		dialog --msgbox "No Links in this page" 200 100
 		gotopage
 		return
 	fi
+
+	#--------------------check action: download or go to link-----------------------
 	if [ "$1" = "-link" ]; then
 	
-	#	echo $link
 		linkselect=$(echo $link|xargs dialog --menu "Link:" 200 100 20 3>&1 1>&2 2>&3 3>&-)
 		
 		if [ $? -eq 1 -o $? -eq 255 ]; then
-			gotopage
+			gotopage "norecord"
 			return
 		else
 			cur_url=$(echo $link|cut -d'"' -f$((linkselect*2)))
@@ -126,19 +138,19 @@ findlink(){
 		if [ "$1" = "-download" ]; then
 			linkselect=$(echo $link|xargs dialog --menu "Download:" 200 100 20 3>&1 1>&2 2>&3 3>&-)
 			if [ $? -eq 1 -o $? -eq 255 ]; then
-				gotopage
+				gotopage "norecord"
 				return
 			else
 				down_url=$(echo $link|cut -d'"' -f$((linkselect*2)))
 				wget -qP ~/Downloads/ "$down_url"	
-				gotopage
+				gotopage "norecord"
 			fi
 		fi
 	fi
 }
 source(){
-#	dialog --textbox "$(w3m -dump_source "$cur_url")" 200 100
-	file=mktemp
+	#--------------download source and show it in textbox----------------
+	file=$(mktemp)
 	curl -skL $cur_url>$file
 	
 	dialog --textbox $file 200 100
@@ -153,7 +165,7 @@ bookmark(){
 	bookmark=$bookmark$(cat ~/.mybrowser/bookmark|awk 'BEGIN{num=3}{print num" \""$0"\""}{num=num+1}')
 	bmselect=$(echo $bookmark|xargs dialog --menu "Bookmarks:" 200 100 10 3>&1 1>&2 2>&3 3>&-)
 	if [ $? -eq 1 -o $? -eq 255 ]; then
-		gotopage
+		gotopage "norecord"
 		return
 	fi
 	case $bmselect in
@@ -195,7 +207,7 @@ checkcmd(){
 		;;
 		"/S")
 			source
-			gotopage
+			gotopage "norecord"
 		;;
 		"/L")
 			findlink -link
@@ -206,16 +218,36 @@ checkcmd(){
 		"/H")
 			showhelp
 		;;
+		"/pp")
+			if [ $history_index -eq 1  ]; then
+				dialog --msgbox "No previous page!" 200 100
+			else
+				history_index=$((history_index-1))
+				cur_url=$(cat ~/.mybrowser/.browse_history|sed -n $history_index"p")
+				gotopage "norecord"				
+			fi
+		;;
+		"/np")
+			all_index=$(cat ~/.mybrowser/.browse_history|wc -l)
+			if [ $history_index -eq $all_index  ]; then
+				dialog --msgbox "No next page!" 200 100
+			else
+				history_index=$((history_index+1))
+				cur_url=$(cat ~/.mybrowser/.browse_history|sed -n $history_index"p")
+				gotopage "norecord"
+			fi
+
+		;;
 		*)
-			echo $cmd|grep "^!">/dev/null
+			echo $cmd|grep -E "^ *!">/dev/null
 			# have ! it's cmd
 			if [ $? -eq 0 ]; then
-				cmd="$(echo $cmd|sed 's/^ *! *\$ *{//g'|sed 's/} *$//g')"
-				file=mktemp
+				cmd=$(echo $cmd|sed 's/^ *! *\$ *{//g'|sed 's/} *$//g')
+				file=$(mktemp)
 				eval $cmd>$file 2>>~/.mybrowser/error
 				dialog --textbox $file 200 100
-				gotopage
 				rm $file
+				gotopage "norecord"
 				
 			# url or garbage
 			else
@@ -249,6 +281,7 @@ checkurl(){
 }
 
 _main(){
+	"">~/.mybrowser/.browse_history
 	checkterms
 	gotopage
 	while [ ""=="" ] ; do
