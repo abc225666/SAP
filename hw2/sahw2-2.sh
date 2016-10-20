@@ -12,6 +12,22 @@ if ! [ -d ~/Downloads ]; then
 	mkdir ~/Downloads
 fi
 
+if ! [ -f ~/.mybrowser/helppage ]; then
+	echo "URL  -> go to the url
+/S  -> show the source code
+/L  -> select a link to go
+/D  -> select a link to download
+/B  -> bookmark
+/H  -> helppage
+/pp -> previous page
+/np -> next page
+!\${cmd} -> execute the shell command">~/.mybrowser/helppage
+fi
+
+
+
+
+
 
 
 alias dialog='dialog --title "browser"'
@@ -117,7 +133,7 @@ findlink(){
 	#--------------------goto link------------------
 	if ["$link" -eq ""];then
 		dialog --msgbox "No Links in this page" 200 100
-		gotopage
+		gotopage "norecord"
 		return
 	fi
 
@@ -200,7 +216,7 @@ showhelp(){
 	dialog --textbox ~/.mybrowser/helppage 200 100
 }
 checkcmd(){
-	cmd=$(echo $cmd | sed -r 's/^ *| *$//g')
+	cmd=$(echo $cmd | sed  's/^ *| *$//g')
 	case $cmd in
 		"/D")
 			findlink -download
@@ -281,7 +297,7 @@ checkurl(){
 }
 
 _main(){
-	"">~/.mybrowser/.browse_history
+	echo "">~/.mybrowser/.browse_history
 	checkterms
 	gotopage
 	while [ ""=="" ] ; do
