@@ -1,22 +1,40 @@
 #!/bin/sh
 
+zfs_bin=$(which zfs|| echo "/sbin/zfs")
+
 if ! [ -f /var/log/backuplog ]; then
 	echo -n "">/var/log/backuplog
 fi
 
-if [ $(cat -n /var/log/backuplog|grep "${1}"'\\'|wc -l) -ge ${2} ]; then
-	ddate=$(cat /var/log/backuplog|grep "^${1}"'\\'|cut -d'\' -f2|head -n 1)
-	dtime=$(cat /var/log/backuplog|grep "^${1}"'\\'|cut -d'\' -f3|head -n 1)
-	zfs destroy "${1}@$ddate::$dtime"
-	sed -i "" $(cat -n /var/log/backuplog|grep "${1}"'\\'|cut -f1|head -n 1)"d" /var/log/backuplog 
-fi
+#if [ $(cat -n /var/log/backuplog|grep "${1}"'\\'|wc -l) -ge ${2} ]; then
+#	ddate=$(cat /var/log/backuplog|grep "^${1}"'\\'|cut -d'\' -f2|head -n 1)
+#	dtime=$(cat /var/log/backuplog|grep "^${1}"'\\'|cut -d'\' -f3|head -n 1)
+#	$zfs_bin destroy "${1}@$ddate::$dtime"
+#	sed -i "" $(cat -n /var/log/backuplog|grep "${1}"'\\'|cut -f1|head -n 1)"d" /var/log/backuplog 
+#fi
+
+while [ $(${zfs_bin} list -t snap -o name | grep "${1}@zb" | wc -l ) -ge ${2} ]
+
+do
+	datetime=$(${zfs_bin} list -t snap -o name |grep "${1}@zb"|cut -d'@' -f2|sed 's/^zb//g'|head -n 1)
+	ddate=$(echo "$datetime"|awk 'BEGIN{FS="::"}{print $1}')
+	dtime=$(echo "$datetime"|awk 'BEGIN{FS="::"}{print $2}')
+
+	$zfs_bin destroy "${1}@zb$ddate::$dtime"
+done
+
 
 # write log 
 date=$(date +%F)
 time=$(date +%X)
 
 
-echo "${1}\\$date\\$time">>/var/log/backuplog
+$zfs_bin snapshot "${1}@zb$date::$time"
 
-zfs snapshot "${1}@$date::$time"
+if [ $? -ne 0 ]; then
+	exit $?
+fi
+
+#echo "${1}\\$date\\$time">>/var/log/backuplog
+
 

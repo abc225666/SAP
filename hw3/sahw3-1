@@ -14,6 +14,8 @@ mod=""
 rcount=20
 dataset=""
 id=0
+script_pos="/usr/home/terry/sahw/hw3/script"
+
 
 if [ "$1" != "--list" -a "$1" != "--delete" ]; then
 	mod="create"
@@ -47,10 +49,23 @@ fi
 create_backup()
 {
 	date=$(date +%F::%X)
+
+	if [ $(cat /var/log/backuplog|grep "$dataset"|wc -l) -ne 0 ]; then
+		# it is being backup
+		echo "${dataset} is being auto-backuped"
+		exit 0
+	fi
+
+	sh $script_pos "${dataset}" ${rcount}
+	
 	file=$(mktemp)
-	echo '*/5 * * * * cat /var/log/    &&  date=$(date +%F+%X) && echo "'$dataset'@${date}" | zfs snapshot '>t
-	cat t
+
+	echo '*/5 * * * * '"sh ${script_pos}"' "'${dataset}'" '${rcount} > $file
+
+	crontab -u root $file
+
 	rm $file
+
 	
 }
 
