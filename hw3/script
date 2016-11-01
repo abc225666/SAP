@@ -1,0 +1,22 @@
+#!/bin/sh
+
+if ! [ -f /var/log/backuplog ]; then
+	echo -n "">/var/log/backuplog
+fi
+
+if [ $(cat -n /var/log/backuplog|grep "${1}"'\\'|wc -l) -ge ${2} ]; then
+	ddate=$(cat /var/log/backuplog|grep "^${1}"'\\'|cut -d'\' -f2|head -n 1)
+	dtime=$(cat /var/log/backuplog|grep "^${1}"'\\'|cut -d'\' -f3|head -n 1)
+	zfs destroy "${1}@$ddate::$dtime"
+	sed -i "" $(cat -n /var/log/backuplog|grep "${1}"'\\'|cut -f1|head -n 1)"d" /var/log/backuplog 
+fi
+
+# write log 
+date=$(date +%F)
+time=$(date +%X)
+
+
+echo "${1}\\$date\\$time">>/var/log/backuplog
+
+zfs snapshot "${1}@$date::$time"
+

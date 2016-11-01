@@ -1,0 +1,78 @@
+#!/bin/sh
+
+
+if [ "$(whoami)" != "root" ]; then
+	echo "need root!"
+	exit
+fi
+
+if ! [ -f /var/log/backuplog ]; then
+	echo -n "">/var/log/backuplog
+fi
+
+mod=""
+rcount=20
+dataset=""
+id=0
+
+if [ "$1" != "--list" -a "$1" != "--delete" ]; then
+	mod="create"
+	dataset=$1
+	if ! [ -z $2 ]; then
+		rcount=$2
+	fi
+fi
+
+if [ "$1" == "--list" ]; then
+	mod="list"
+	if ! [ -z $2 ]; then
+		dataset=$2
+		if ! [ -z $3 ]; then
+			id=$3
+		fi
+	fi
+	
+fi
+
+if [ "$1" == "--delete" ]; then
+	mod="delete"
+	if ! [ -z $2 ]; then
+		dataset=$2
+		if ! [ -z $3 ]; then
+			id=$3
+		fi
+	fi
+fi
+
+create_backup()
+{
+	date=$(date +%F::%X)
+	file=$(mktemp)
+	echo '*/5 * * * * cat /var/log/    &&  date=$(date +%F+%X) && echo "'$dataset'@${date}" | zfs snapshot '>t
+	cat t
+	rm $file
+	
+}
+
+
+
+
+exe_func()
+{
+	case $mod in 
+		
+		"create")
+			create_backup
+		;;
+
+		"list")
+		;;
+
+		"delete")
+		;;
+		
+	esac
+}
+
+
+exe_func
