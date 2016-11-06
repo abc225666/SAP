@@ -1,5 +1,7 @@
 #!/bin/sh
 
+zfs_bin=$(which zfs || echo "/sbin/zfs")
+
 
 if [ "$(whoami)" != "root" ]; then
 	echo "need root!"
@@ -12,7 +14,7 @@ fi
 
 mod=""
 rcount=20
-dataset=""
+dataset=".*"
 id=0
 script_pos="/usr/home/terry/sahw/hw3/script"
 
@@ -50,26 +52,31 @@ create_backup()
 {
 	date=$(date +%F::%X)
 
-	if [ $(cat /var/log/backuplog|grep "$dataset"|wc -l) -ne 0 ]; then
-		# it is being backup
-		echo "${dataset} is being auto-backuped"
-		exit 0
-	fi
-
 	sh $script_pos "${dataset}" ${rcount}
-	
-	file=$(mktemp)
-
-	echo '*/5 * * * * '"sh ${script_pos}"' "'${dataset}'" '${rcount} > $file
-
-	crontab -u root $file
-
-	rm $file
-
 	
 }
 
+list_backup()
+{
+	${zfs_bin} list -t snap -o name|grep ${dataset}"@" |awk '
+		BEGIN{
+			num=1;
+			"which zfs|| echo \"/sbin/zfs\""|getline zfs;
+			print zfs;
+			printf "%-5s\t%-50s\t%-20s\n","ID","Dataset","Time";
+		}
+		{
+			if(NR>0)
+			{
+				"echo \""$0"\" |cut -d\"@\" -f1"|getline set;
+				zfs " list -t snap -o creation \""$0"\"|tail -n 1"|getline timeset;
+				printf "%-5s\t%-50s\t%-20s\n",num,set,timeset;
+				num++;
+			}
+		}'
 
+
+}
 
 
 exe_func()
@@ -81,6 +88,7 @@ exe_func()
 		;;
 
 		"list")
+			list_backup
 		;;
 
 		"delete")
