@@ -12,6 +12,14 @@ if ! [ -d ~/Downloads ]; then
 	mkdir ~/Downloads
 fi
 
+if ! [ -f ~/.mybrowser/homepage ]; then
+	echo "http://nasa.cs.nctu.edu.tw">~/.mybrowser/homepage
+fi
+
+if [ $(cat ~/.mybrowser/homepage) == "" ]; then
+	echo "http://nasa.cs.nctu.edu.tw">~/.mybrowser/homepage
+fi
+
 if ! [ -f ~/.mybrowser/helppage ]; then
 	echo "URL  -> go to the url
 /S  -> show the source code
@@ -34,7 +42,8 @@ alias dialog='dialog --title "browser"'
 alias curlcheck='curl -o /dev/null -s -w "%{http_code}"'
 
 home_url="http://google.com"
-cur_url="http://nasa.cs.nctu.edu.tw"
+# cur_url="http://nasa.cs.nctu.edu.tw"
+cur_url=$(cat ~/.mybrowser/homepage)
 cmd=""
 bmselect=""
 tempurl="google.com"
@@ -218,6 +227,10 @@ showhelp(){
 checkcmd(){
 	cmd=$(echo $cmd | sed  's/^ *| *$//g')
 	case $cmd in
+		"/M")
+			mpage=$(dialog --inputbox "input new home page" 200 100 3>&1 1>&2 2>&3 3>&-)
+			echo "$mpage" > ~/.mybrowser/homepage
+		;;
 		"/D")
 			findlink -download
 		;;
