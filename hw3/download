@@ -1,0 +1,35 @@
+#!/bin/sh
+
+zfs_bin=$(which zfs||echo "/sbin/zfs")
+gdrive_bin="/usr/local/bin/gdrive"
+
+id=$1
+dataset=$2
+
+file=$(mktemp).xz.enc
+fileout=$(mktemp)
+
+check()
+{
+	if [ $1 != 0 ]; then
+		rm $file
+		rm $fileout
+		exit $1;
+	fi
+}
+
+
+
+$gdrive_bin download --stdout $id > $file
+
+check $?
+
+cat $file | openssl aes256 -d -salt | xz -dc > $fileout
+
+check $?
+
+$zfs_bin receive "$dataset" < $fileout
+
+
+rm $fileout
+rm $file
