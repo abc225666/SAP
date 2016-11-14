@@ -1,0 +1,176 @@
+#!/bin/sh
+
+zfs_bin=$(which zfs || echo "/sbin/zfs")
+
+
+if [ "$(whoami)" != "root" ]; then
+	echo "need root!"
+	exit
+fi
+
+if ! [ -f /var/log/backuplog ]; then
+	echo -n "">/var/log/backuplog
+fi
+
+mod=""
+rcount=20
+dataset=".*"
+id=0
+script_pos="/usr/home/terry/sahw/hw3/script"
+
+
+if [ "$1" != "--list" -a "$1" != "--delete" ]; then
+	mod="create"
+	dataset=$1
+	if ! [ -z $2 ]; then
+		rcount=$2
+	fi
+fi
+
+if [ "$1" == "--list" ]; then
+	mod="list"
+	if ! [ -z $2 ]; then
+		dataset=$2
+		if ! [ -z $3 ]; then
+			id=$3
+		fi
+	fi
+	
+fi
+
+if [ "$1" == "--delete" ]; then
+	mod="delete"
+	if ! [ -z $2 ]; then
+		dataset=$2
+		if ! [ -z $3 ]; then
+			id=$3
+		fi
+	fi
+fi
+
+create_backup()
+{
+	_date=$(date +%F::%X)
+
+#	sh $script_pos "${dataset}" ${rcount}
+
+	while [ $(${zfs_bin} list -t snap -o name | grep "${dataset}@zb" | wc -l ) -ge ${rcount} ]
+	do
+		datetime=$(${zfs_bin} list -t snap -o name |grep "${dataset}@zb"|cut -d'@' -f2|sed 's/^zb//g'|head -n 1)
+		ddate=$(echo "$datetime"|awk 'BEGIN{FS="::"}{print $1}')
+		dtime=$(echo "$datetime"|awk 'BEGIN{FS="::"}{print $2}')
+
+		$zfs_bin destroy "${dataset}@zb$ddate::$dtime"
+	done
+
+
+# write log 
+
+
+	$zfs_bin snapshot "${dataset}@zb${_date}"
+
+	if [ $? -ne 0 ]; then
+		exit $?
+	fi
+
+	
+}
+
+list_backup()
+{
+	file=$(mktemp)
+	${zfs_bin} list -t snap -o name|grep ${dataset}"@" |awk '
+		BEGIN{
+			num=1;
+			"which zfs|| echo \"/sbin/zfs\""|getline zfs;
+			printf "%-5s\t%-50s\t%-20s\n","ID","Dataset","Time";
+		}
+		{
+			if(NR>0)
+			{
+				"echo \""$0"\" |cut -d\"@\" -f1"|getline set;
+				zfs " list -t snap -o creation \""$0"\"|tail -n 1"|getline timeset;
+				printf "%-5s\t%-50s\t%-20s\n",num,set,timeset;
+				num++;
+			}
+		}'>$file
+	
+	if [ $id -eq 0 ]; then
+		cat $file
+	
+	else
+		i=$(cat $file|wc -l)
+		if [ $id -gt $((i-1))  ]; then
+			echo "No Such Index!"
+
+		else
+			cat $file|awk -v my_id=$((id+1)) '
+			{
+				if(NR==1 || NR==my_id)
+				{
+					print $0
+				}
+			}'
+			#cat $file|sed -n '1,'$((id+1))'p' 
+			#cat $file|grep "^${id}"
+		fi
+	fi
+
+	rm $file
+
+
+}
+
+delete_backup()
+{
+	file=$(mktemp)
+	${zfs_bin} list -t snap -o name|grep ${dataset}"@" |awk '
+	BEGIN{
+		
+		"which zfs|| echo \"/sbin/zfs\""|getline zfs;
+	}
+	{
+		print $0;
+	}'>$file
+
+	if [ $id -eq 0 ]; then
+		cat $file|awk -v zfs=${zfs_bin} '
+		{
+			system(zfs" destroy \""$0"\"");
+		}'
+	else
+		cat $file|awk -v my_id=$id '
+		BEGIN{
+			"which zfs|| echo \"/bin/zfs\""|getline zfs;
+		}
+		{
+			if(NR == my_id)
+			{
+				system(zfs" destroy \""$0"\"");
+			}
+		}'
+	fi
+}
+
+
+exe_func()
+{
+	case $mod in 
+		
+		"create")
+			create_backup
+		;;
+
+		"list")
+			list_backup
+		;;
+
+		"delete")
+			delete_backup
+		;;
+		
+	esac
+}
+
+
+exe_func
