@@ -1,0 +1,27 @@
+#!/bin/sh
+
+zfs_bin=$(which zfs||echo "/sbin/zfs")
+gdrive_bin="/usr/local/bin/gdrive"
+
+# $1 dataset snap
+
+dataset=$1
+
+$zfs_bin list "$dataset" 1>/dev/null 2>/dev/null
+if [ $? != 0 ]; then
+	echo "No such dataset!!!!!"
+	exit $?
+fi
+
+file=$(mktemp)
+
+$zfs_bin send "$dataset" | xz | openssl aes256 -salt -out $file 
+
+if [ $? != 0 ]; then
+	rm $file
+	exit $?
+fi
+
+cat $file |${gdrive_bin} upload - $dataset.xz.enc | pv >/dev/null
+
+rm $file
