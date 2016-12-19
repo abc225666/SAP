@@ -22,7 +22,9 @@ exe_file="/usr/local/bin/goodjob"
 zb_file="/usr/local/bin/zbackup"
 
 : ${goodjob_enable:="NO"}
-: ${goodjob_flags:="/usr/local/etc/zbackup.conf"}
+: ${goodjob_configs:="/usr/local/etc/zbackup.conf"}
+
+cus="$2"
 
 goodjob_reload()
 {
@@ -31,24 +33,25 @@ goodjob_reload()
 
 goodjob_start()
 {
-	check_running 
+	check_running
 	if [ $? -eq 0 ]; then
 		echo "already running"
 	else
-		if [ -z $2 ]; then
+		if [ ! -z "$cus" ]; then
 			echo "starting goodjob"
-			if [ -f $2 ]; then
+			if ! [ -f "$cus" ]; then
 				echo "conf not exist"
 				exit 1
 			fi
-			daemon /usr/local/bin/goodjob "$2" &
+			daemon /usr/local/bin/goodjob "$cus" &
 		else 
 			echo "starting goodjob"
-			if [ -f "$goodjob_flags" ]; then
+			if [ ! -f "$goodjob_configs" ]; then
 				echo "conf not exist"
 				exit 1
 			fi
-			daemon /usr/local/bin/goodjob "$goodjob_flags" &
+			echo $goodjob_configs
+			daemon /usr/local/bin/goodjob "$goodjob_configs" &
 		fi
 	fi
 }
@@ -69,7 +72,7 @@ goodjob_restart()
 {
 	goodjob_stop
 	echo "starting goodjob"
-	daemon ${exe_file} &
+	daemon ${exe_file} "$goodjob_configs" &
 }
 
 goodjob_status()
