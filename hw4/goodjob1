@@ -9,15 +9,17 @@
 name="goodjob"
 rcvar="goodjob_enable"
 
-extra_commands="status reload"
+extra_commands="status reload list"
 start_cmd="goodjob_start"
 stop_cmd="goodjob_stop"
 restart_cmd="goodjob_restart"
 status_cmd="goodjob_status"
 reload_cmd="goodjob_reload"
+list_cmd="goodjob_list"
 pidfile="/var/run/goodjob.pid"
 
-exe_file=/usr/local/bin/goodjob
+exe_file="/usr/local/bin/goodjob"
+zb_file="/usr/local/bin/zbackup"
 
 : ${goodjob_enable:="NO"}
 : ${goodjob_flags:="/usr/local/etc/zbackup.conf"}
@@ -33,15 +35,33 @@ goodjob_start()
 	if [ $? -eq 0 ]; then
 		echo "already running"
 	else
-		echo "starting goodjob"
-		daemon /usr/local/bin/goodjob &
+		if [ -z $2 ]; then
+			echo "starting goodjob"
+			if [ -f $2 ]; then
+				echo "conf not exist"
+				exit 1
+			fi
+			daemon /usr/local/bin/goodjob "$2" &
+		else 
+			echo "starting goodjob"
+			if [ -f "$goodjob_flags" ]; then
+				echo "conf not exist"
+				exit 1
+			fi
+			daemon /usr/local/bin/goodjob "$goodjob_flags" &
+		fi
 	fi
 }
 
 goodjob_stop()
 {
 	echo "stopping goodjob"
-	kill -9 $(ps aux | grep ${exe_file} | grep -v grep | awk '{print $2}'| grep -v ^$$) 2>/dev/null
+	kill -9 $(ps aux | grep ${exe_file} | grep -v grep | awk '{print $2}'| grep -v "^$$" ) 2>/dev/null
+	
+	if [ $? -ne 0 ]; then
+		echo "error occur when stopping"
+	fi
+	
 	
 }
 
@@ -49,7 +69,7 @@ goodjob_restart()
 {
 	goodjob_stop
 	echo "starting goodjob"
-	daemon /usr/local/bin/goodjob &
+	daemon ${exe_file} &
 }
 
 goodjob_status()
@@ -65,6 +85,11 @@ goodjob_status()
 		echo "not running"
 		ret=1
 	fi
+}
+
+goodjob_list()
+{
+	${zb_file} --list
 }
 
 show_pid()
