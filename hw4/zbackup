@@ -33,12 +33,10 @@ elif [ "$1" == "--delete" ]; then
 	: ${id:=0}
 elif [ "$1" == "--daemon" -o "$1" == "-d" ]; then
 	mod="daemon"
-	config_path="$3"
-	: ${config_path:="/usr/local/etc/zbackup.conf"}
 elif [ "$1" == "--config" -o "$1" == "-c" ]; then
-	mod="daemon"
+	mod="config"
 	config_path="$2"
-	: ${config_path:="/usr/local/etc/zbackup.conf"}
+	: ${config_path:=/usr/local/etc/zbackup.conf}
 else
 	mod="create"
 	dataset=$1
@@ -150,7 +148,7 @@ delete_backup()
 
 daemon_backup()
 {
-	service goodjob1 start "$config_path"
+	service goodjob1 start
 }
 
 
