@@ -20,6 +20,7 @@ pidfile="/var/run/goodjob.pid"
 exe_file=/usr/local/bin/goodjob
 
 : ${goodjob_enable:="NO"}
+: ${goodjob_flags:="/usr/local/etc/zbackup.conf"}
 
 goodjob_reload()
 {

@@ -1,0 +1,70 @@
+#!/bin/sh
+
+echo $$ > /var/run/goodjob.pid
+trap 'echo "asd"' SIGHUP
+
+exe_file="/usr/local/bin/goodjob"
+
+timer=0
+
+parse()
+{
+	enable=""
+	policy=""
+	CONFIG_FILE=$1
+	SECTION=$2
+	eval `sed -e 's/[[:space:]]*\=[[:space:]]*/=/g' \
+   	-e 's/;.*$//' \
+  	 -e 's/[[:space:]]*$//' \
+   	-e 's/^[[:space:]]*//' \
+   	-e "s/^\(.*\)=\([^\"']*\)$/\1=\"\2\"/" \
+   	< $CONFIG_FILE \
+  	| sed -n -e "/^\[$SECTION\]/,/^\s*\[/{/^[^;].*\=.*/p;}"`
+ 
+	: ${enable:="yes"}
+	: ${policy:="20x1d"}
+ 
+ 	if [ $enable == "yes" ]; then
+		rcount=$(echo $policy | awk 'BEGIN{FS="x"}{print $1}')
+		daytype=$(echo $policy | awk 'BEGIN{FS="x"}{print $2}'| tail -c -2)
+		day=$(echo $policy | awk 'BEGIN{FS="x"}{print $2}' | sed 's/'$daytype'//g')
+		case $daytype in
+			"m")
+				day=$((day*60))
+			;;
+			"h")
+				day=$((day*3600))
+			;;
+			"d")
+				day=$((day*86400))
+			;;
+			"w")
+				day=$((day*604800))
+			;;
+		esac
+
+		/usr/local/bin/zbackup $SECTION $rcount
+	fi
+
+
+}
+
+config_path="$1"
+: ${config_path:="/usr/local/etc/zbackup.conf"}
+
+tmpfile=$(mktemp)
+
+cat $config_path > $tmpfile
+
+
+sec=$(cat $tmpfile | grep "\[.*\]" | sed 's/\[//g' | sed 's/\]//g')
+for s in $sec; do
+	parse $tmpfile $s
+done
+
+
+while [ 0 -eq 0 ]
+do 
+
+	sleep 5
+done

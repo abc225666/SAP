@@ -146,6 +146,11 @@ delete_backup()
 	fi
 }
 
+daemon_backup()
+{
+	service goodjob1 start
+}
+
 
 exe_func()
 {
@@ -162,7 +167,14 @@ exe_func()
 		"delete")
 			delete_backup
 		;;
-		
+
+		"daemon")
+			daemon_backup
+		;;
+
+		"config")
+			config_backup
+		;;
 	esac
 }
 
