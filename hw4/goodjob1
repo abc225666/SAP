@@ -1,0 +1,89 @@
+#!/bin/sh
+
+. /etc/rc.subr
+
+# PROVIDES: goodjob
+# REQUIRES: DAEMON
+# KEYWORD: shutdown
+
+name="goodjob"
+rcvar="goodjob_enable"
+
+extra_commands="status reload"
+start_cmd="goodjob_start"
+stop_cmd="goodjob_stop"
+restart_cmd="goodjob_restart"
+status_cmd="goodjob_status"
+reload_cmd="goodjob_reload"
+pidfile="/var/run/goodjob.pid"
+
+exe_file=/usr/local/bin/goodjob
+
+: ${goodjob_enable:="NO"}
+
+goodjob_reload()
+{
+	kill -1 $(ps aux | grep "${exe_file}" | grep -v grep | awk '{print $2}' | grep -v "^$$")
+}
+
+goodjob_start()
+{
+	check_running 
+	if [ $? -eq 0 ]; then
+		echo "already running"
+	else
+		echo "starting goodjob"
+		daemon /usr/local/bin/goodjob &
+	fi
+}
+
+goodjob_stop()
+{
+	echo "stopping goodjob"
+	kill -9 $(ps aux | grep ${exe_file} | grep -v grep | awk '{print $2}'| grep -v ^$$) 2>/dev/null
+	
+}
+
+goodjob_restart()
+{
+	goodjob_stop
+	echo "starting goodjob"
+	daemon /usr/local/bin/goodjob &
+}
+
+goodjob_status()
+{
+	local result
+	result=$( ps aux | grep ${exe_file} | grep -v $0 | grep -v grep | wc -l )
+	if [ $result -gt 0 ] ; then
+        	#echo "my randservice is up"
+		show_pid
+		ret=0
+	else
+		#echo "my randservice is down"
+		echo "not running"
+		ret=1
+	fi
+}
+
+show_pid()
+{
+	echo "running at pid: "$(cat /var/run/goodjob.pid | awk '{printf $1" "}')
+}
+
+check_running()
+{
+	local result
+        result=$( ps aux | grep "${exe_file}" | grep -v grep | wc -l )
+        if [ $result -gt 0 ] ; then
+                ret=0
+        else
+                ret=1
+        fi
+	return $ret
+
+}
+
+
+load_rc_config $name
+run_rc_command "$1"
